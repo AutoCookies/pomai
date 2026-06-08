@@ -1,1 +1,0 @@
-// fixedpoint stub
