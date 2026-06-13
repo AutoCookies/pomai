@@ -39,7 +39,6 @@ run ./hybrid_orchestrator_bench
 run ./low_ram_profile_bench
 run ./new_membrane_bench
 run ./simd_new_membranes_bench
-run ./edge_ai_core_bench
 run ./mesh_lod_bench
 run ./vulkan_transfer_bench
 

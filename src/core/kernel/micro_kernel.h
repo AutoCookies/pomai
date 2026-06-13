@@ -9,7 +9,6 @@
 #include "core/kernel/message.h"
 #include "core/kernel/pod.h"
 #include "pomai/status.h"
-#include "ai/analytical_engine.h"
 #include "core/metrics/metrics_registry.h"
 #include "core/util/ring_buffer.h"
 
@@ -52,32 +51,6 @@ namespace pomai::core {
         /** Post a message for later execution. */
         void Enqueue(Message&& msg) {
             metrics::MetricsRegistry::Instance().Increment("kernel_messages_enqueued");
-            
-            // Apply ELM-based Backpressure
-            auto* elm = AnalyticalEngine::Global().GetModel("kernel_pressure");
-            if (!elm) {
-                // Lazily Train strict mathematical relationship
-                (void)AnalyticalEngine::Global().CreateELMModel("kernel_pressure", 2, 8, 1);
-                elm = AnalyticalEngine::Global().GetModel("kernel_pressure");
-                if (elm) {
-                    float X[8] = {0.0f, 0.0f, 10.0f, 100.0f, 100.0f, 1000.0f, 200.0f, 5000.0f};
-                    float Y[4] = {0.0f, 60.0f, 600.0f, 1500.0f};
-                    (void)elm->Train(std::span<const float>(X, 8), std::span<const float>(Y, 4), 4);
-                }
-            }
-
-            if (elm && elm->InputDim() == 2 && elm->OutputDim() >= 1) {
-                float x[2] = { static_cast<float>(queue_.size()), static_cast<float>(msg.payload.size()) };
-                float pred[1] = { 0.0f };
-                elm->Predict(std::span<const float>(x, 2), std::span<float>(pred, 1));
-                if (pred[0] > 1000.0f) { 
-                    metrics::MetricsRegistry::Instance().Increment("kernel_load_shed");
-                    if (msg.result_ptr) {
-                        *static_cast<Status*>(msg.result_ptr) = Status::ResourceExhausted("ELM predicted system timeout under load");
-                    }
-                    return; 
-                }
-            }
             
             if (!queue_.push_back(std::move(msg))) {
                 metrics::MetricsRegistry::Instance().Increment("kernel_queue_overflow");

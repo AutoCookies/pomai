@@ -3,32 +3,20 @@
 #include <cmath>
 #include <numeric>
 #include "pomai/metadata.h"
-#include "ai/analytical_engine.h"
 
 namespace pomai::core {
 
 void HeuristicEngine::OptimizeSearchOptions(std::span<const float> query, pomai::SearchOptions* options) {
     if (!options || query.empty()) return;
 
-    // Use Learned ELM Model if available
-    auto* elm = AnalyticalEngine::Global().GetModel("hnsw_router");
-    if (elm && elm->InputDim() == query.size() && elm->OutputDim() >= 1) {
-        std::vector<float> pred(elm->OutputDim());
-        elm->Predict(query, std::span<float>(pred.data(), pred.size()));
-        int predicted_ef = static_cast<int>(pred[0]);
-        if (predicted_ef < 10) predicted_ef = 10;
-        if (predicted_ef > 512) predicted_ef = 512;
-        options->routing_probe_override = predicted_ef;
+    // Static heuristics based on vector variance
+    float variance = CalculateVariance(query);
+    if (variance > 0.5f) {
+        options->routing_probe_override = 16;
+    } else if (variance < 0.1f) {
+        options->routing_probe_override = 2;
     } else {
-        // Fallback to static heuristics
-        float variance = CalculateVariance(query);
-        if (variance > 0.5f) {
-            options->routing_probe_override = 16;
-        } else if (variance < 0.1f) {
-            options->routing_probe_override = 2;
-        } else {
-            options->routing_probe_override = 8;
-        }
+        options->routing_probe_override = 8;
     }
 
     if (query.size() > 1024) {

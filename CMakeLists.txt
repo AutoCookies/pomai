@@ -99,7 +99,6 @@ add_library(pomai STATIC
   src/core/audio/audio_engine.cc
   src/core/bloom/bloom_engine.cc
   src/core/document/document_engine.cc
-  src/core/ai/no_train_dispatch.cc
   src/core/lifecycle/semantic_lifecycle.cc
   src/core/security/aes_gcm.cc
   src/core/shard/layer_lookup.cc
@@ -158,27 +157,6 @@ add_library(pomai STATIC
   src/util/crc32c.cc
   src/util/logging.cc
 
-  # SLM and Tensor Core (Phase 12 Integration)
-  src/ai/ai_engine.cpp
-  src/ai/cheesebrain_core/ggml.c
-  src/ai/cheesebrain_core/ggml-alloc.c
-  src/ai/cheesebrain_core/ggml-backend.cpp
-  src/ai/cheesebrain_core/ggml-quants.c
-  src/ai/cheesebrain_core/gguf.cpp
-  src/ai/cheesebrain_core/cheese-model-loader.cpp
-  src/ai/cheesebrain_core/cheese-context.cpp
-  src/ai/tensor_core/tensorflow/compiler/mlir/lite/core/model_builder_base.cc
-  src/ai/tensor_core/tensorflow/lite/core/interpreter.cc
-  src/ai/tensor_core/tensorflow/lite/core/interpreter_builder.cc
-  src/ai/tensor_core/tensorflow/lite/core/subgraph.cc
-  src/ai/tensor_core/tensorflow/compiler/mlir/lite/allocation.cc
-  src/ai/tensor_core/tensorflow/lite/core/model_building.cc
-  src/ai/tensor_core/tensorflow/lite/kernels/add.cc
-  src/ai/tensor_core/tensorflow/lite/kernels/mul.cc
-  src/ai/tensor_core/tensorflow/lite/kernels/sub.cc
-  src/ai/tensor_core/tensorflow/lite/kernels/reshape.cc
-  src/ai/tensor_core/tensorflow/lite/core/kernels/register.cc
-  src/ai/analytical_engine.cpp
 )
 
 target_include_directories(pomai
@@ -187,9 +165,6 @@ target_include_directories(pomai
     ${CMAKE_CURRENT_SOURCE_DIR}/src
     ${POMAI_VULKAN_HEADERS_DIR}
     ${CMAKE_CURRENT_SOURCE_DIR}/src/compute/vulkan/loader
-    ${CMAKE_CURRENT_SOURCE_DIR}/src/ai
-    ${CMAKE_CURRENT_SOURCE_DIR}/src/ai/cheesebrain_core
-    ${CMAKE_CURRENT_SOURCE_DIR}/src/ai/tensor_core
   PRIVATE
     ${CMAKE_CURRENT_SOURCE_DIR}
   SYSTEM PRIVATE
@@ -484,15 +459,6 @@ if (POMAI_BUILD_TESTS)
   pomai_setup_test(simd_new_membranes_test)
   pomai_add_labeled_test(simd_new_membranes_test "unit")
 
-  add_executable(no_train_dispatch_test tests/unit/no_train_dispatch_test.cc)
-  pomai_setup_test(no_train_dispatch_test)
-  pomai_add_labeled_test(no_train_dispatch_test "unit")
-
-
-  add_executable(edge_ai_core_enhancements_test tests/unit/edge_ai_core_enhancements_test.cc)
-  pomai_setup_test(edge_ai_core_enhancements_test)
-  pomai_add_labeled_test(edge_ai_core_enhancements_test "unit")
-
   add_executable(mesh_lod_manager_test tests/unit/mesh_lod_manager_test.cc)
   pomai_setup_test(mesh_lod_manager_test)
   pomai_add_labeled_test(mesh_lod_manager_test "unit")
@@ -572,10 +538,6 @@ if (POMAI_BUILD_TESTS)
   add_executable(multi_modal_test tests/unit/multi_modal_test.cc)
   pomai_setup_test(multi_modal_test)
   pomai_add_labeled_test(multi_modal_test "unit")
-
-  add_executable(analytical_engine_test src/ai/analytical_engine_test.cc)
-  pomai_setup_test(analytical_engine_test)
-  pomai_add_labeled_test(analytical_engine_test "unit")
 
   add_executable(membrane_test tests/integ/membrane_test.cc)
   pomai_setup_test(membrane_test)
@@ -794,14 +756,10 @@ target_link_libraries(new_membrane_bench PRIVATE ${POMAI_EXE_DEPS})
 target_include_directories(new_membrane_bench PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/include)
 
 add_executable(simd_new_membranes_bench benchmarks/simd_new_membranes_bench.cc)
-target_link_libraries(simd_new_membranes_bench PRIVATE ${POMAI_EXE_DEPS})
-target_include_directories(simd_new_membranes_bench PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/include)
+  target_link_libraries(simd_new_membranes_bench PRIVATE ${POMAI_EXE_DEPS})
+  target_include_directories(simd_new_membranes_bench PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/include)
 
-add_executable(edge_ai_core_bench benchmarks/edge_ai_core_bench.cc)
-target_link_libraries(edge_ai_core_bench PRIVATE ${POMAI_EXE_DEPS})
-target_include_directories(edge_ai_core_bench PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/include ${CMAKE_CURRENT_SOURCE_DIR}/src)
-
-add_executable(mesh_lod_bench benchmarks/mesh_lod_bench.cc)
+  add_executable(mesh_lod_bench benchmarks/mesh_lod_bench.cc)
 target_link_libraries(mesh_lod_bench PRIVATE ${POMAI_EXE_DEPS})
 target_include_directories(mesh_lod_bench PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/include)
 
@@ -857,9 +815,6 @@ if (POMAI_REGISTER_BENCH_CTEST)
 
   add_test(NAME bench_simd_new_membranes COMMAND $<TARGET_FILE:simd_new_membranes_bench>)
   set_tests_properties(bench_simd_new_membranes PROPERTIES LABELS "bench" TIMEOUT ${POMAI_BENCH_TIMEOUT_SHORT})
-
-  add_test(NAME bench_edge_ai_core COMMAND $<TARGET_FILE:edge_ai_core_bench>)
-  set_tests_properties(bench_edge_ai_core PROPERTIES LABELS "bench" TIMEOUT ${POMAI_BENCH_TIMEOUT_SHORT})
 
   add_test(NAME bench_mesh_lod COMMAND $<TARGET_FILE:mesh_lod_bench>)
   set_tests_properties(bench_mesh_lod PROPERTIES LABELS "bench" TIMEOUT ${POMAI_BENCH_TIMEOUT_SHORT})
