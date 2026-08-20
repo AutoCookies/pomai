@@ -2,16 +2,27 @@
 
 # PomaiDB
 
-<img src="./assets/logo.png" width="200px">
+<img src="./assets/logo.png" alt="PomaiDB logo" width="200">
 
-**The predictable edge-native database for multimodal AI memory.**
+### The predictable, edge-native database for multimodal AI memory.
 
-[![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg?style=for-the-badge)](LICENSE)
-[![C++20](https://img.shields.io/badge/C%2B%2B-20-blue.svg?style=for-the-badge&logo=c%2B%2B)](https://en.wikipedia.org/wiki/C%2B%2B20)
+**Embedded vector search · Offline RAG · Multimodal storage · ARM64 · Zero-OOM design**
 
----
+<p>
+  <a href="#-why-pomaidb">Why PomaiDB</a> ·
+  <a href="#-features">Features</a> ·
+  <a href="#-architecture">Architecture</a> ·
+  <a href="#-performance">Performance</a> ·
+  <a href="#-installation">Installation</a> ·
+  <a href="#-quick-start">Quick Start</a>
+</p>
 
-[What is PomaiDB?](#-what-is-pomaidb) • [Why PomaiDB?](#-why-pomaidb) • [Architecture](#-technical-highlights) • [Installation](#-installation--usage) • [Quick Start](#-quick-start-c20) • [Benchmarks](#-performance) • [Contributors](#-contributors)
+<p>
+  <img src="https://img.shields.io/badge/License-MIT-blue.svg?style=for-the-badge" alt="MIT License">
+  <img src="https://img.shields.io/badge/C%2B%2B-20-blue.svg?style=for-the-badge&logo=c%2B%2B" alt="C++20">
+  <img src="https://img.shields.io/badge/ARM64-Edge_AI-green.svg?style=for-the-badge" alt="ARM64 Edge AI">
+  <img src="https://img.shields.io/badge/RAG-Offline-orange.svg?style=for-the-badge" alt="Offline RAG">
+</p>
 
 </div>
 
@@ -19,139 +30,665 @@
 
 ## 🚀 What is PomaiDB?
 
-PomaiDB is a **small-footprint, production-ready vector store** that runs natively on ARM64 (Raspberry Pi, Orange Pi, Jetson) and x86_64. It is designed to be **linked into your application** as a static or shared library and driven via a simple C++ API or a C API with Python bindings. Unlike distributed or server-oriented vector databases, PomaiDB assumes a **single process, single thread of execution**: one event loop, one storage engine, one logical database. That constraint is intentional. It yields predictable latency, trivial concurrency reasoning, and an I/O model that flash storage (SD cards, eMMC) can sustain for years.
+**PomaiDB is a lightweight, embeddable vector database and multimodal AI memory engine built for edge devices.**
 
-**Core capabilities (current):**
+It brings **vector search, semantic retrieval, offline RAG, graph relationships, mesh data, time-series data, key-value storage, and multimodal memory** into a single native database designed to run directly inside your application.
 
-- **Vector ingestion and search** — Put vectors (with optional metadata), run approximate nearest-neighbor search (ANN) with configurable index types (IVF, HNSW), batch search, and point queries. All with optional scalar quantization (SQ8) to cut memory and bandwidth.
-- **Membranes** — Logical collections with separate dimensions, sharding, and indexes. Supported kinds: `kVector`, `kRag`, `kGraph`, `kText`, `kTimeSeries`, `kKeyValue`, `kMeta`, `kSketch`, `kBlob`, `kSpatial`, `kMesh`, `kSparse`, `kBitset`.
-- **Mesh LOD manager** — `kMesh` now supports asynchronous multi-LOD generation (high-poly + decimated levels) driven by `TaskScheduler`, with latency-first auto selection and explicit high-detail override per mesh query.
-- **Typed membrane APIs** — Native C++ + C APIs across all supported membrane kinds with strict low-RAM caps.
-- **Hybrid & multimodal search** — `QueryOrchestrator` supports vector + lexical + graph traversal paths with heuristic execution ordering, bounded frontier RAM, and metadata partition hints (`device_id`/`location_id`).
-- **ObjectLinker (Phase 2)** — shared GID links across vector/graph/mesh (`LinkObjects`), so vector hits can expand into linked graph vertex + mesh ids.
-- **Edge-native connectivity (Phase 3)** — embedded HTTP endpoints (`/health`, `/metrics`, `/ingest/meta/...`, `/ingest/vector/...`) and lightweight MQTT/WebSocket-style ingestion listener for direct edge sensor intake, with optional bearer-token/token auth, rate limiting, JSON error model, idempotency keys, and ACK/ERR replies.
-- **Edge analytical aggregates (mini-OLAP)** — `Sum`, `Avg`, `Min`, `Max`, `Count`, `Top-K` over planner/runtime post-filter result sets.
-- **Virtual time-travel** — query constraints by `as_of_ts` and `as_of_lsn` for replay/debug style reads.
-- **Hardware wear-aware maintenance** — write-byte counters at WAL/segment layers and endurance-aware compaction biasing for flash longevity.
-- **No-train AI dispatch** — deterministic heuristic inference path can classify/score all current membrane datatypes without any training step.
-- **Offline-first Edge RAG** — Ingest documents (chunk → embed → store) and retrieve context (embed query → search → format chunk text) entirely on-device. Zero-copy chunking, a pluggable `EmbeddingProvider` (mock for tests; ready for a small local model), and strict memory limits so the pipeline fits in 64–128 MB RAM.
-- **Virtual File System (VFS)** — Storage and environment operations go through abstract `Env` and file interfaces. Default backend is POSIX; an in-memory backend (`InMemoryEnv`) supports tests and non-POSIX targets. No direct `<unistd.h>` or `<fcntl.h>` in core code.
-- **Zero-OOM philosophy** — Bounded memtable size, backpressure (auto-freeze when over threshold), and optional integration with **palloc** for arena-style allocation and hard memory caps. Runtime caps include lifecycle entries, text docs, query frontier, KV entries, sketch entries, and blob bytes.
-- **Edge security hardening** — AES-256-GCM encryption-at-rest on WAL path, key manager primitives (arm/wipe), and anomaly-triggered key wipe hooks in orchestrated query flow.
+Unlike cloud-first and distributed vector databases, PomaiDB is designed around a different assumption:
 
-PomaiDB does **not** aim to replace distributed vector DBs or to maximize throughput under heavy concurrency. It aims to be the **reliable, embeddable vector and RAG engine** for edge AI: cameras, gateways, NAS, and custom OSes where you need search and RAG without the cloud and without killing your storage.
+> **One process. One logical database. One predictable execution path.**
 
----
+That constraint is intentional.
 
-## ❓ Why PomaiDB?
+PomaiDB prioritizes:
 
-### 🛡️ SD-Card Savior
+* Predictable latency
+* Low memory usage
+* Sequential storage I/O
+* Flash-storage longevity
+* Deterministic execution
+* Offline operation
+* Native ARM64 deployment
+* Embeddability
+* Zero-OOM-oriented resource management
 
-Most databases punish flash storage with random writes. Wear leveling and write amplification on SD cards and eMMC lead to early failure and unpredictable latency. PomaiDB is designed around **append-only, log-structured storage**: new data is written sequentially at the tail. Deletes and updates are represented as tombstones. No random seeks, no in-place overwrites. **The I/O pattern your storage was built for.**
-
-### 🧵 Single-Threaded Sanity
-
-No mutexes. No lock-free queues. No race conditions or deadlocks. PomaiDB runs a **strict single-threaded event loop**—similar in spirit to Redis or Node.js. Every operation (ingest, search, freeze, flush) runs to completion in order. You get deterministic latency, trivial reasoning about concurrency, and a hot path optimized for CPU cache locality without any locking overhead.
-
-### 🛑 Zero-OOM Guarantee
-
-PomaiDB integrates with **palloc** (and compatible allocators) for O(1) arena-style allocation and optional hard memory limits. Combined with single-threaded design and configurable backpressure, you can bound memory usage and avoid the surprise OOMs that plague heap-heavy workloads on constrained devices. The Edge RAG pipeline respects max document size, max chunk size, and batch limits so that under 64–128 MB RAM the system never exceeds a safe threshold.
-
-### 🌐 Offline-First RAG
-
-The built-in RAG pipeline needs **no external API**. You ingest documents (text → chunk → embed → store) and retrieve context (query → embed → search → formatted text) entirely inside PomaiDB. A mock embedding provider is included for tests and demos; the interface is designed so a small local model (e.g. GGML/llama.cpp) can be plugged in later without changing pipeline code.
+It is designed for **Raspberry Pi, Orange Pi, NVIDIA Jetson, NAS devices, gateways, cameras, custom operating systems, and other resource-constrained edge hardware**.
 
 ---
 
-## 🛠️ Technical Highlights
+# 🎯 Why PomaiDB?
 
-- **🏗️ Architecture** — Shared-nothing, single-threaded event loop. One logical thread, deterministic sequencing. `DbImpl` + `MembraneManager` + `QueryPlanner/QueryOrchestrator` provide typed multi-membrane execution for C++, C, and Python bindings.
-- **💾 Storage** — Log-structured, append-only. Tombstone-based deletion; sequential flush of in-memory buffer to disk. Optional explicit `Flush()` from the application loop. VFS abstraction (`Env`, `SequentialFile`, `RandomAccessFile`, `WritableFile`, optional `FileMapping`) so core code has no OS-specific includes.
-- **🧠 Memory** — Optional **palloc** (mmap-backed or custom allocator). Core and C API can use palloc for control structures and large buffers; RAG pipeline uses configurable limits and batch sizes. Arena-backed buffers for ingestion; optional hard limits for embedded and edge deployments.
-- **🔌 I/O** — Sequential write-behind; zero-copy reads (mmap where available via VFS, or buffered I/O). Designed for SD-card and eMMC longevity first, NVMe-friendly by construction.
-- **🔍 RAG** — Zero-copy chunking (`std::string_view`), `EmbeddingProvider` interface, optional chunk text storage in RAG engine, and a unified `RagPipeline` with `IngestDocument` and `RetrieveContext`. C API: `pomai_rag_pipeline_create`, `pomai_rag_ingest_document`, `pomai_rag_retrieve_context` (and buffer-based variant); Python: `ingest_document`, `retrieve_context`.
-- **🛡️ Hardening** — Stress/soak, crash-replay, power-loss, SD-fault injection, endurance-aware write tracking, and encryption overhead benchmarks are part of the repository test/bench matrix.
-- **💻 Hardware** — Optimized for **ARM64** (Raspberry Pi, Orange Pi, Jetson) and **x64** servers. Single-threaded design avoids NUMA and core-pinning complexity.
+Traditional vector databases are often designed around servers, distributed deployments, high concurrency, and large memory footprints.
+
+Edge AI has different requirements.
+
+A camera gateway may have:
+
+```text
+Limited RAM
+    +
+SD / eMMC storage
+    +
+Intermittent connectivity
+    +
+Local AI inference
+    +
+Strict latency requirements
+```
+
+Running a cloud-oriented database on that hardware can introduce unnecessary complexity.
+
+PomaiDB takes the opposite approach:
+
+```text
+Embedded
+   ↓
+Single-threaded
+   ↓
+Predictable
+   ↓
+Memory bounded
+   ↓
+Flash-friendly
+   ↓
+Offline-first
+   ↓
+Edge-native
+```
+
+### The result
+
+A database that can live **inside your AI application instead of beside it**.
 
 ---
 
-## 📊 Performance
+# ✨ Features
 
-PomaiDB is engineered for predictable ingestion, retrieval, and maintenance on constrained edge hardware.
+## 🧠 Vector Search
 
-> [!NOTE]
-> **Latest benchmark run:** via `./scripts/run_benchmarks_one_by_one.sh` (full suite, exit code `0`).
+PomaiDB provides native vector ingestion and similarity search with configurable ANN indexes.
 
-**Run Device (Edge-class laptop):**
-- **Model:** HP ProBook 450 G5
-- **CPU:** Intel(R) Core(TM) i7-8550U @ 1.80GHz (8 cores)
-- **RAM:** 16GB
-- **Storage:** SATA SSD
+Supported capabilities include:
 
-| Benchmark | Workload | Latest Result |
-| :--- | :--- | :--- |
-| **Comprehensive Search** | 10K vecs / 1K queries / top-k=10 | Mean **18.55 ms**, P99 **28.52 ms**, QPS **53.89**, Recall@10 **100%** |
-| **Ingestion Throughput** | 10K vectors @ 128-dim | **31,004 vectors/sec** (~15.14 MB/s), avg **32.25 us/vector** |
-| **RAG Lexical** | Chunked retrieval pipeline | **0.068 ms** |
-| **RAG Hybrid** | Lexical + vector candidates | **0.064 ms** |
-| **CI Perf Gate** | 2K vecs / 300 queries (3 iters) | Ingest **56,847.3 qps**, Search p50 **2509.65 us**, p99 **3470.43 us** |
-| **CBRS (single)** | Routed query profile | Query **30.9 qps**, p99 **21820.6 us**, Recall@10 **100%** |
-| **Low-memory Edge Churn** | 5 cycles constrained run | Throughput **1844.43 vec/s**, Peak RSS **51.2 MiB**, PASS |
-| **Quantization** | Float/SQ8/FP16/1-bit comparison | Throughput: Float **56.37**, SQ8 **56.90**, FP16 **56.42**, 1-bit **49.41** |
-| **Mesh LOD** | 4,096 triangles / 5K volume ops | Auto-LOD **276.005 ms**, High-detail **1664.509 ms** (~6.0x faster auto path) |
+* Approximate nearest-neighbor search
+* IVF
+* HNSW
+* Batch search
+* Point queries
+* Metadata filtering
+* Scalar quantization
+* SQ8
+* Configurable vector dimensions
 
-
-*Note: Benchmarks are device/profile dependent. Throughput and latency vary by CPU class, storage medium, fsync policy, and memory limit profile.*
+This makes PomaiDB suitable for semantic search, embeddings, recommendation systems, visual similarity, and local AI memory.
 
 ---
 
-## ⚙️ Installation & Usage
+## 🤖 Offline-First RAG
 
-### 🛠️ Build
+PomaiDB includes an embedded RAG pipeline designed to operate entirely on-device.
 
-Requires a C++20 compiler and CMake 3.20+.
+```text
+Document
+   │
+   ▼
+Chunk
+   │
+   ▼
+Embedding
+   │
+   ▼
+Vector Storage
+   │
+   ▼
+Semantic Search
+   │
+   ▼
+Retrieved Context
+   │
+   ▼
+Local AI Model
+```
 
-**Vulkan headers:** the Khronos bundle (Vulkan-Hpp + `vulkan/*.h`) is expected under **`third_party/vulkan/include/`** in the repo root. CMake prints `[pomai] Vulkan headers: …` at configure time.
+No cloud API is required.
 
-**Examples:** see **`examples/README.md`** (C++, C ABI, Python, Go, JS/TS, RAG quickstart).
+The RAG pipeline provides:
+
+* Zero-copy chunking
+* `EmbeddingProvider`
+* Document ingestion
+* Context retrieval
+* Configurable chunk limits
+* Bounded batch sizes
+* Local-first execution
+* C++ and Python APIs
+
+The architecture is also designed so a small local embedding model such as a GGML/`llama.cpp`-based model can be integrated without changing the RAG pipeline itself.
+
+---
+
+# 🌐 Edge-Native Connectivity
+
+PomaiDB can expose lightweight embedded endpoints for applications that need direct edge connectivity.
+
+Available functionality includes:
+
+```text
+/health
+/metrics
+/ingest/meta/...
+/ingest/vector/...
+```
+
+The edge connectivity layer supports:
+
+* HTTP ingestion
+* Lightweight MQTT/WebSocket-style ingestion
+* Bearer-token authentication
+* Rate limiting
+* JSON error responses
+* Idempotency keys
+* ACK / ERR responses
+
+This makes PomaiDB suitable for **edge gateways, IoT devices, sensors, cameras, and local AI systems**.
+
+---
+
+# 🧩 Multimodal Memory
+
+PomaiDB does not restrict memory to vectors.
+
+Its membrane architecture supports multiple data types:
+
+```text
+kVector
+kRag
+kGraph
+kText
+kTimeSeries
+kKeyValue
+kMeta
+kSketch
+kBlob
+kSpatial
+kMesh
+kSparse
+kBitset
+```
+
+Each membrane can have its own dimensions, indexes, and storage behavior.
+
+This allows a single embedded database to represent relationships between different types of AI memory.
+
+---
+
+# 🔗 Object Linking
+
+PomaiDB supports shared global identifiers across different memory representations.
+
+For example:
+
+```text
+Vector Hit
+    │
+    ├── Graph Vertex
+    │
+    └── Mesh Object
+```
+
+The `ObjectLinker` allows vector search results to expand into related graph and mesh objects.
+
+This is particularly useful for multimodal AI systems where a single entity may have:
+
+* Text embeddings
+* Visual embeddings
+* Graph relationships
+* 3D geometry
+* Metadata
+
+---
+
+# 🕸️ Hybrid & Multimodal Search
+
+`QueryOrchestrator` can combine multiple retrieval strategies:
+
+```text
+             Query
+               │
+       ┌───────┼────────┐
+       ▼       ▼        ▼
+    Vector   Lexical   Graph
+       │       │        │
+       └───────┼────────┘
+               ▼
+       Query Orchestrator
+               │
+               ▼
+        Ranked Results
+```
+
+Execution can use:
+
+* Vector search
+* Lexical search
+* Graph traversal
+* Metadata partition hints
+* Bounded query frontiers
+* Heuristic execution ordering
+
+This enables hybrid retrieval without requiring multiple external databases.
+
+---
+
+# 🗃️ More Than a Vector Database
+
+PomaiDB is designed as a **multimodal embedded memory layer**, not just a vector index.
+
+Supported capabilities include:
+
+| Capability  | Purpose                              |
+| ----------- | ------------------------------------ |
+| Vector      | Embeddings and similarity search     |
+| RAG         | Local retrieval-augmented generation |
+| Graph       | Relationships and traversal          |
+| Text        | Text storage and lexical retrieval   |
+| Time Series | Temporal data                        |
+| Key-Value   | Fast structured lookup               |
+| Meta        | Metadata                             |
+| Sketch      | Compact analytical structures        |
+| Blob        | Binary objects                       |
+| Spatial     | Spatial information                  |
+| Mesh        | 3D mesh data                         |
+| Sparse      | Sparse representations               |
+| Bitset      | Compact boolean/set operations       |
+
+---
+
+# 🦣 Edge-Friendly by Design
+
+## SD-Card Savior
+
+Flash storage behaves differently from enterprise SSDs.
+
+SD cards and eMMC devices have limited write endurance, and random writes can increase write amplification and wear.
+
+PomaiDB therefore uses an **append-only, log-structured storage model**.
+
+```text
+New Data
+   │
+   ▼
+Append to Log
+   │
+   ▼
+Sequential Storage
+```
+
+Deletes and updates are represented through tombstones rather than destructive in-place rewrites.
+
+The result is an I/O model designed specifically with **consumer flash and edge storage longevity** in mind.
+
+---
+
+# 🧵 Single-Threaded by Choice
+
+PomaiDB deliberately avoids unnecessary concurrency complexity.
+
+The database uses a **single-threaded event loop**:
+
+```text
+Ingest
+  ↓
+Search
+  ↓
+Freeze
+  ↓
+Flush
+  ↓
+Maintenance
+```
+
+Operations execute deterministically.
+
+That means:
+
+* No mutex-heavy hot path
+* No lock-free queue complexity
+* No database-level race conditions
+* No deadlock management
+* Predictable operation ordering
+* Better CPU cache locality
+
+The design is conceptually similar to the single-threaded execution model used by systems such as Redis and Node.js.
+
+---
+
+# 🛑 Zero-OOM Philosophy
+
+Edge devices cannot afford uncontrolled memory growth.
+
+PomaiDB therefore treats memory as a first-class resource.
+
+The runtime supports:
+
+* Bounded memtables
+* Automatic backpressure
+* Auto-freeze thresholds
+* Configurable query frontiers
+* Document size limits
+* Chunk size limits
+* Batch limits
+* Optional hard memory caps
+* `palloc` integration
+* Bounded KV, blob, sketch, and text storage
+
+The Edge RAG pipeline is designed to operate within constrained environments, including configurations targeting approximately **64–128 MB RAM**.
+
+---
+
+# 🔐 Edge Security
+
+PomaiDB includes security hardening designed for embedded deployments.
+
+Current capabilities include:
+
+* AES-256-GCM encryption at rest
+* WAL encryption
+* Key manager primitives
+* Key wipe support
+* Anomaly-triggered key wipe hooks
+* Authentication for edge ingestion
+* Rate limiting
+* Idempotency keys
+
+Security is treated as part of the database runtime rather than an external infrastructure requirement.
+
+---
+
+# 🏗️ Architecture
+
+PomaiDB follows a deliberately small architecture.
+
+```text
+                    Application
+                         │
+             ┌───────────┼───────────┐
+             ▼           ▼           ▼
+           C++           C          Python
+             │           │           │
+             └───────────┼───────────┘
+                         ▼
+                    PomaiDB API
+                         │
+                         ▼
+                  ┌──────────────┐
+                  │   DB / Core  │
+                  └──────┬───────┘
+                         │
+              ┌──────────┼──────────┐
+              ▼          ▼          ▼
+        Membrane      Query       Storage
+        Manager       Planner      Engine
+              │          │          │
+              ▼          ▼          ▼
+        Multimodal   Orchestrator   WAL
+        Membranes        │          │
+                         ▼          ▼
+                    Hybrid Search  Segments
+```
+
+Core components include:
+
+* `DbImpl`
+* `MembraneManager`
+* `QueryPlanner`
+* `QueryOrchestrator`
+* Typed membrane APIs
+* Log-structured storage
+* VFS abstraction
+* Optional `palloc`
+* RAG pipeline
+
+---
+
+# 💾 Storage Architecture
+
+PomaiDB uses a log-structured, append-only storage model.
+
+```text
+Application
+     │
+     ▼
+  Memtable
+     │
+     │ bounded
+     ▼
+   Freeze
+     │
+     ▼
+   Flush
+     │
+     ▼
+  WAL / Segments
+```
+
+The storage layer provides:
+
+* Sequential writes
+* Tombstone-based deletion
+* Write-behind
+* Optional explicit `Flush()`
+* Zero-copy reads
+* Memory mapping where supported
+* Buffered I/O fallback
+* VFS abstraction
+
+The VFS layer abstracts operating-system-specific file operations through interfaces such as:
+
+```text
+Env
+SequentialFile
+RandomAccessFile
+WritableFile
+FileMapping
+```
+
+This keeps the core storage engine independent from direct POSIX system calls.
+
+---
+
+# 📐 Membranes
+
+A **membrane** is PomaiDB's logical abstraction for organizing different classes of data.
+
+Membranes provide isolation for:
+
+* Dimensions
+* Indexes
+* Storage
+* Query behavior
+* Data types
+
+Example:
+
+```text
+Database
+│
+├── images
+│   └── kVector
+│
+├── documents
+│   └── kRag
+│
+├── entities
+│   └── kGraph
+│
+└── meshes
+    └── kMesh
+```
+
+This makes it possible to build multimodal AI memory systems without operating several independent databases.
+
+---
+
+# 🧠 Hardware Support
+
+PomaiDB targets edge and embedded environments first.
+
+### ARM64
+
+Designed for platforms such as:
+
+* Raspberry Pi
+* Orange Pi
+* NVIDIA Jetson
+* ARM64 gateways
+* Embedded Linux devices
+
+### x86_64
+
+Also suitable for:
+
+* Developer workstations
+* Edge servers
+* NAS systems
+* Small servers
+* Local AI machines
+
+The single-threaded architecture avoids NUMA and CPU-pinning complexity.
+
+---
+
+# 📊 Performance
+
+PomaiDB is optimized for **predictable latency and constrained hardware**, not maximum distributed throughput.
+
+The latest benchmark suite was executed through:
 
 ```bash
-# Clone the repository
+./scripts/run_benchmarks_one_by_one.sh
+```
+
+with the full suite completing successfully.
+
+### Benchmark Hardware
+
+```text
+Device:  HP ProBook 450 G5
+CPU:     Intel Core i7-8550U @ 1.80GHz
+Cores:   8
+RAM:     16 GB
+Storage: SATA SSD
+```
+
+### Latest Results
+
+| Benchmark                 | Workload                            |                  Result |
+| ------------------------- | ----------------------------------- | ----------------------: |
+| **Comprehensive Search**  | 10K vectors / 1K queries / top-k=10 |       **18.55 ms mean** |
+| **Comprehensive Search**  | P99 latency                         |            **28.52 ms** |
+| **Comprehensive Search**  | Throughput                          |           **53.89 QPS** |
+| **Comprehensive Search**  | Recall@10                           |                **100%** |
+| **Ingestion**             | 10K × 128-dim vectors               |  **31,004 vectors/sec** |
+| **RAG Lexical**           | Chunked retrieval                   |            **0.068 ms** |
+| **RAG Hybrid**            | Lexical + vector                    |            **0.064 ms** |
+| **CI Performance Gate**   | 2K vectors / 300 queries            | **56,847.3 QPS ingest** |
+| **Low-Memory Edge Churn** | 5 constrained cycles                |   **51.2 MiB peak RSS** |
+| **Mesh Auto-LOD**         | 4,096 triangles / 5K operations     |          **276.005 ms** |
+
+> **Note:** Benchmark results depend on CPU, storage medium, filesystem, `fsync` policy, workload, and configured memory limits. Do not treat these numbers as universal performance guarantees.
+
+---
+
+# ⚙️ Installation
+
+## Requirements
+
+PomaiDB requires:
+
+* C++20 compiler
+* CMake 3.20+
+* Git
+* Vulkan headers for mesh-related functionality
+
+The Khronos Vulkan headers are expected at:
+
+```text
+third_party/vulkan/include/
+```
+
+CMake reports the detected Vulkan header location during configuration.
+
+---
+
+## Clone
+
+```bash
 git clone --recursive https://github.com/pomagrenate/pomaidb
 cd pomaidb
+```
 
-# Build the project
-mkdir build && cd build
+## Build
+
+```bash
+mkdir build
+cd build
+
 cmake .. -DCMAKE_BUILD_TYPE=Release
 make -j$(nproc)
 ```
 
-**Tests (full suite):**
+---
+
+# 🧪 Run Tests
+
+Build the full test suite:
 
 ```bash
-cmake -S . -B build -DCMAKE_BUILD_TYPE=Release -DPOMAI_BUILD_TESTS=ON
+cmake -S . \
+  -B build \
+  -DCMAKE_BUILD_TYPE=Release \
+  -DPOMAI_BUILD_TESTS=ON
+
 cmake --build build -j$(nproc)
-ctest --test-dir build --output-on-failure
 ```
 
-**Smaller clone (embedded / CI):**
+Run tests:
 
 ```bash
-git clone --depth 1 --recursive https://github.com/pomagrenate/pomaidb
-cd pomaidb
-./scripts/slim_palloc_submodule.sh
+ctest \
+  --test-dir build \
+  --output-on-failure
 ```
-
-Then build as above.
 
 ---
 
-## 🏁 Quick Start
+# 📦 Smaller Clone for Embedded / CI
 
-### 🔹 Quick Start (C++20)
+For a smaller checkout:
+
+```bash
+git clone \
+  --depth 1 \
+  --recursive \
+  https://github.com/pomagrenate/pomaidb
+
+cd pomaidb
+
+./scripts/slim_palloc_submodule.sh
+```
+
+Then build using the normal CMake workflow.
+
+---
+
+# 🏁 Quick Start
+
+## C++20
 
 ```cpp
 #include "pomai/pomai.h"
+
 #include <cstdio>
 #include <memory>
 #include <vector>
@@ -163,10 +700,12 @@ int main() {
     opt.shard_count = 1;
 
     std::unique_ptr<pomai::DB> db;
+
     auto st = pomai::DB::Open(opt, &db);
     if (!st.ok()) return 1;
 
     std::vector<float> vec(opt.dim, 0.1f);
+
     db->Put(1, vec);
     db->Flush();
     db->Freeze("__default__");
@@ -174,15 +713,23 @@ int main() {
     pomai::SearchResult result;
     db->Search(vec, 5, &result);
 
-    for (const auto& hit : result.hits)
-        std::printf("id=%llu score=%.4f\n", (unsigned long long)hit.id, hit.score);
+    for (const auto& hit : result.hits) {
+        std::printf(
+            "id=%llu score=%.4f\n",
+            (unsigned long long)hit.id,
+            hit.score
+        );
+    }
 
     db->Close();
+
     return 0;
 }
 ```
 
-### 🔹 Quick Start (Edge RAG, C++)
+---
+
+# 🤖 Quick Start: Edge RAG
 
 ```cpp
 #include "pomai/pomai.h"
@@ -193,112 +740,370 @@ int main() {
     pomai::DBOptions opt;
     opt.path = "/tmp/rag_db";
     opt.dim = 4;
+
     std::unique_ptr<pomai::DB> db;
+
     pomai::DB::Open(opt, &db);
 
     pomai::MembraneSpec rag;
     rag.name = "rag";
     rag.kind = pomai::MembraneKind::kRag;
+
     db->CreateMembrane(rag);
 
     pomai::MockEmbeddingProvider provider(4);
-    pomai::RagPipeline pipeline(db.get(), "rag", 4, &provider);
 
-    pipeline.IngestDocument(1, "Your document text here.");
+    pomai::RagPipeline pipeline(
+        db.get(),
+        "rag",
+        4,
+        &provider
+    );
+
+    pipeline.IngestDocument(
+        1,
+        "Your document text here."
+    );
+
     std::string context;
-    pipeline.RetrieveContext("your query", 5, &context);
+
+    pipeline.RetrieveContext(
+        "your query",
+        5,
+        &context
+    );
 
     db->Close();
+
     return 0;
 }
 ```
 
-### 🔹 Quick Start (Python)
+---
+
+# 🐍 Quick Start: Python
 
 ```python
 import pomaidb
 
-db = pomaidb.open_db("/tmp/rag_db", dim=4)
-pomaidb.create_rag_membrane(db, "rag", dim=4)
+db = pomaidb.open_db(
+    "/tmp/rag_db",
+    dim=4,
+)
 
-# Ingest document (chunk + embed + store)
-pomaidb.ingest_document(db, "rag", doc_id=1, text="Your document text here.")
+pomaidb.create_rag_membrane(
+    db,
+    "rag",
+    dim=4,
+)
 
-# Retrieve context for a query
-context = pomaidb.retrieve_context(db, "rag", "your query", top_k=5)
+pomaidb.ingest_document(
+    db,
+    "rag",
+    doc_id=1,
+    text="Your document text here.",
+)
+
+context = pomaidb.retrieve_context(
+    db,
+    "rag",
+    "your query",
+    top_k=5,
+)
+
 pomaidb.close(db)
 ```
 
 ---
 
-## 💡 Use Cases
+# 💡 Use Cases
 
-- **📸 Camera & object detection** — Embed frames or crops, run similarity search on-device. Single-threaded ingestion fits naturally into a camera pipeline.
-- **🧠 Edge RAG** — Ingest document chunks and embeddings on the device; run retrieval-augmented generation with local vector search and formatted context.
-- **🔍 Offline semantic search** — Index documents or media on a NAS or edge node. Sequential writes and zero-copy reads are friendly to both SSDs and consumer flash.
-- **🖥️ Custom & bare-metal OSes** — The VFS layer allows swapping the POSIX backend for an in-memory or custom backend.
+PomaiDB is designed for applications where **AI memory needs to live close to the data**.
+
+## 📸 Edge Computer Vision
+
+Store embeddings from:
+
+* Camera frames
+* Object crops
+* Images
+* Video segments
+
+Then perform similarity search directly on the device.
 
 ---
 
-## 📖 Documentation
+## 🧠 Local AI Memory
 
-- **📑 Edge release criteria**: [`docs/EDGE_RELEASE.md`](docs/EDGE_RELEASE.md)
-- **🌍 Edge deployment**: [`docs/EDGE_DEPLOYMENT.md`](docs/EDGE_DEPLOYMENT.md)
-- **💥 Failure semantics**: [`docs/FAILURE_SEMANTICS.md`](docs/FAILURE_SEMANTICS.md)
-- **🐍 Python ctypes API**: [`docs/PYTHON_API.md`](docs/PYTHON_API.md)
-- **📌 ABI versioning**: [`docs/VERSIONING.md`](docs/VERSIONING.md)
+Build local AI systems that need persistent memory without sending every query to the cloud.
 
-## 👥 Contributors
+```text
+User / Sensor
+      ↓
+Local AI
+      ↓
+PomaiDB
+      ↓
+Vector / RAG / Graph Memory
+      ↓
+Local Retrieval
+```
 
-<table style="border-collapse: collapse; border: none;">
-  <tr style="border: none;">
-    <td align="center" style="border: none; padding: 10px;">
+---
+
+## 📚 Offline RAG
+
+Run retrieval-augmented generation entirely on-device.
+
+Ideal for:
+
+* Offline assistants
+* Private document search
+* Industrial systems
+* Field devices
+* Local knowledge bases
+* Air-gapped environments
+
+---
+
+## 🔍 Offline Semantic Search
+
+Index documents and media locally and perform semantic retrieval without depending on external infrastructure.
+
+---
+
+## 📡 IoT & Edge Gateways
+
+Store and retrieve sensor data directly at the edge.
+
+PomaiDB is particularly suitable when:
+
+```text
+Network unavailable
+       OR
+Cloud unavailable
+       OR
+Data must stay local
+```
+
+---
+
+## 🖥️ NAS & Home AI
+
+Use PomaiDB as a local semantic memory layer for:
+
+* NAS systems
+* Personal AI
+* Home automation
+* Local search
+* Private knowledge bases
+
+---
+
+## 🔧 Custom Operating Systems
+
+The VFS architecture allows the storage environment to be replaced with:
+
+* POSIX
+* In-memory backends
+* Custom filesystem implementations
+* Non-POSIX environments
+
+---
+
+# 📖 Documentation
+
+More detailed documentation is available in the repository:
+
+| Document                                            | Description           |
+| --------------------------------------------------- | --------------------- |
+| [`EDGE_RELEASE.md`](docs/EDGE_RELEASE.md)           | Edge release criteria |
+| [`EDGE_DEPLOYMENT.md`](docs/EDGE_DEPLOYMENT.md)     | Edge deployment       |
+| [`FAILURE_SEMANTICS.md`](docs/FAILURE_SEMANTICS.md) | Failure behavior      |
+| [`PYTHON_API.md`](docs/PYTHON_API.md)               | Python API            |
+| [`VERSIONING.md`](docs/VERSIONING.md)               | ABI and versioning    |
+
+Examples for C++, C ABI, Python, Go, JavaScript/TypeScript, and RAG are available in [`examples/README.md`](examples/README.md).
+
+---
+
+# 🧭 When Should You Use PomaiDB?
+
+Choose PomaiDB when you need:
+
+```text
+Embedded database
+        +
+Vector search
+        +
+Local AI / RAG
+        +
+Low memory
+        +
+ARM64
+        +
+Offline operation
+        +
+Flash-friendly storage
+```
+
+PomaiDB is especially compelling when the database needs to run **inside the same process as your application**.
+
+---
+
+# 🚫 What PomaiDB Is Not
+
+PomaiDB is intentionally not designed to replace every database.
+
+It is **not** primarily optimized for:
+
+* Distributed clusters
+* Multi-node consensus
+* Massive concurrent workloads
+* Cloud-scale horizontal sharding
+* Maximum throughput at any cost
+
+If your system needs a distributed vector database serving thousands of concurrent clients across many nodes, a server-oriented database may be a better choice.
+
+PomaiDB exists for a different problem:
+
+> **Reliable AI memory on the edge.**
+
+---
+
+# 🔥 The PomaiDB Philosophy
+
+Most databases ask:
+
+> How fast can we scale?
+
+PomaiDB asks:
+
+> **How reliably can we run on the device that actually has to do the work?**
+
+That changes the engineering priorities.
+
+```text
+Cloud Database
+    ↓
+Scale
+Concurrency
+Throughput
+Distributed infrastructure
+```
+
+versus:
+
+```text
+PomaiDB
+    ↓
+Predictability
+Memory bounds
+Storage endurance
+Offline operation
+Embeddability
+Edge reliability
+```
+
+For edge AI, those constraints are not limitations.
+
+**They are the product.**
+
+---
+
+# 👥 Contributors
+
+<div align="center">
+
+<table>
+  <tr>
+    <td align="center">
       <a href="https://github.com/pomagrenate">
-        <img src="https://github.com/pomagrenate.png" width="80px;" alt="pomagrenate" style="border-radius: 50%;"/><br />
+        <img src="https://github.com/pomagrenate.png" width="80" alt="pomagrenate">
+        <br>
         <sub><b>pomagrenate</b></sub>
       </a>
     </td>
-    <td align="center" style="border: none; padding: 10px;">
+    <td align="center">
       <a href="https://github.com/quanvanskipli">
-        <img src="https://github.com/quanvanskipli.png" width="80px;" alt="quanvanskipli" style="border-radius: 50%;"/><br />
+        <img src="https://github.com/quanvanskipli.png" width="80" alt="quanvanskipli">
+        <br>
         <sub><b>quanvanskipli</b></sub>
       </a>
     </td>
-    <td align="center" style="border: none; padding: 10px;">
+    <td align="center">
       <a href="https://github.com/claude">
-        <img src="https://github.com/claude.png" width="80px;" alt="claude" style="border-radius: 50%;"/><br />
+        <img src="https://github.com/claude.png" width="80" alt="claude">
+        <br>
         <sub><b>claude</b></sub>
       </a>
     </td>
-    <td align="center" style="border: none; padding: 10px;">
+    <td align="center">
       <a href="https://github.com/Roto0flame">
-        <img src="https://github.com/Roto0flame.png" width="80px;" alt="Roto0flame" style="border-radius: 50%;"/><br />
+        <img src="https://github.com/Roto0flame.png" width="80" alt="Roto0flame">
+        <br>
         <sub><b>Roto0flame</b></sub>
       </a>
     </td>
   </tr>
 </table>
 
-## ⭐ Star History
-
-<div align="center">
-  <a href="https://star-history.com/#pomagrenate/pomaidb&Date">
-    <picture>
-      <source media="(prefers-color-scheme: dark)" srcset="https://api.star-history.com/svg?repos=pomagrenate/pomaidb&type=Date&theme=dark" />
-      <source media="(prefers-color-scheme: light)" srcset="https://api.star-history.com/svg?repos=pomagrenate/pomaidb&type=Date" />
-      <img alt="Star History Chart" src="https://api.star-history.com/svg?repos=pomagrenate/pomaidb&type=Date" width="100%" />
-    </picture>
-  </a>
 </div>
 
 ---
 
-## 🏷️ Discovery Tags
+# ⭐ Star History
 
-**Keywords:** embedded vector database, single-threaded, C++20, append-only, log-structured, zero-copy, mmap, palloc, edge AI, IoT, Raspberry Pi, Orange Pi, Jetson, ARM64, SD card longevity, vector search, similarity search, RAG, semantic search, offline RAG, VFS, virtual file system.
+<div align="center">
+
+<a href="https://star-history.com/#pomagrenate/pomaidb&Date">
+  <picture>
+    <source
+      media="(prefers-color-scheme: dark)"
+      srcset="https://api.star-history.com/svg?repos=pomagrenate/pomaidb&type=Date&theme=dark"
+    />
+    <source
+      media="(prefers-color-scheme: light)"
+      srcset="https://api.star-history.com/svg?repos=pomagrenate/pomaidb&type=Date"
+    />
+    <img
+      src="https://api.star-history.com/svg?repos=pomagrenate/pomaidb&type=Date"
+      alt="PomaiDB GitHub Star History"
+      width="100%"
+    />
+  </picture>
+</a>
+
+</div>
 
 ---
 
-## 📜 License
+# 🔎 Keywords
 
-MIT License. See [LICENSE](LICENSE) for details.
+**PomaiDB**, **embedded vector database**, **C++20 vector database**, **edge AI database**, **edge-native database**, **multimodal AI memory**, **offline RAG database**, **embedded RAG**, **vector search**, **semantic search**, **similarity search**, **ARM64 database**, **Raspberry Pi vector database**, **Jetson AI database**, **Orange Pi database**, **local AI memory**, **offline semantic search**, **single-threaded database**, **append-only database**, **log-structured storage**, **zero-copy database**, **mmap database**, **low-memory database**, **zero-OOM database**, **SD-card optimized database**, **eMMC-friendly database**, **IoT database**, **embedded AI**, **edge RAG**, **VFS**, **virtual file system**, **HNSW**, **IVF**, **SQ8**, **C++ vector database**, **Python vector database**.
+
+---
+
+# 📜 License
+
+PomaiDB is released under the **MIT License**.
+
+See [`LICENSE`](LICENSE) for details.
+
+---
+
+<div align="center">
+
+## Build AI Memory for the Edge.
+
+**No cloud required.
+No distributed cluster required.
+No massive infrastructure required.**
+
+### PomaiDB
+
+**Predictable. Embedded. Multimodal. Edge-native.**
+
+⭐ Star the repository if PomaiDB is useful to you.
+
+</div>
